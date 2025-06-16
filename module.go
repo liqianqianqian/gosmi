@@ -92,12 +92,22 @@ func CreateModule(smiModule *types.SmiModule) (module SmiModule) {
 	}
 }
 
-func LoadModule(modulePath string) (string, error) {
-	moduleName := smi.LoadModule(modulePath)
-	if moduleName == "" {
-		return "", fmt.Errorf("Could not load module at %s", modulePath)
-	}
-	return moduleName, nil
+func LoadModule(modulePath string) (*Module, error) {
+    moduleName := smi.LoadModule(modulePath)
+    if moduleName == "" {
+        return nil, fmt.Errorf("Could not load module at %s", modulePath)
+    }
+
+    smiModule := smi.GetModule(moduleName)
+    if smiModule == nil {
+        return nil, fmt.Errorf("Could not get module %s after loading", moduleName)
+    }
+
+    module := &Module{
+        Module: smiModule,
+    }
+
+    return module, nil
 }
 
 func GetLoadedModules() (modules []SmiModule) {
