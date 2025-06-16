@@ -8,128 +8,64 @@ import (
 	"github.com/sleepinggenius2/gosmi/types"
 )
 
+// 保留兼容性定义
 type SmiModule struct {
 	models.Module
 	smiModule *types.SmiModule
 }
 
+// 对外暴露的最终模块结构体
 type Module struct {
-    *models.Module
+	Module models.Module
 }
 
-func (m SmiModule) GetIdentityNode() (node SmiNode, ok bool) {
-	smiIdentityNode := smi.GetModuleIdentityNode(m.smiModule)
-	if smiIdentityNode == nil {
-		return
-	}
-	return CreateNode(smiIdentityNode), true
-}
-
-func (m SmiModule) GetImports() (imports []models.Import) {
-	for smiImport := smi.GetFirstImport(m.smiModule); smiImport != nil; smiImport = smi.GetNextImport(smiImport) {
-		_import := models.Import{
-			Module: string(smiImport.Module),
-			Name:   string(smiImport.Name),
-		}
-		imports = append(imports, _import)
-	}
-	return
-}
-
-func (m SmiModule) GetNode(name string) (node SmiNode, err error) {
-	return GetNode(name, m)
-}
-
-func (m SmiModule) GetNodes(kind ...types.NodeKind) (nodes []SmiNode) {
-	nodeKind := types.NodeAny
-	if len(kind) > 0 && kind[0] != types.NodeUnknown {
-		nodeKind = kind[0]
-	}
-	for smiNode := smi.GetFirstNode(m.smiModule, nodeKind); smiNode != nil; smiNode = smi.GetNextNode(smiNode, nodeKind) {
-		nodes = append(nodes, CreateNode(smiNode))
-	}
-	return
-}
-
-func (m SmiModule) GetRevisions() (revisions []models.Revision) {
-	for smiRevision := smi.GetFirstRevision(m.smiModule); smiRevision != nil; smiRevision = smi.GetNextRevision(smiRevision) {
-		revision := models.Revision{
-			Date:        smiRevision.Date,
-			Description: smiRevision.Description,
-		}
-		revisions = append(revisions, revision)
-	}
-	return
-}
-
-func (m SmiModule) GetType(name string) (outType SmiType, err error) {
-	return GetType(name, m)
-}
-
-func (m SmiModule) GetTypes() (types []SmiType) {
-	for smiType := smi.GetFirstType(m.smiModule); smiType != nil; smiType = smi.GetNextType(smiType) {
-		types = append(types, CreateType(smiType))
-	}
-	return
-}
-
-func (m SmiModule) GetRaw() (module *types.SmiModule) {
-	return m.smiModule
-}
-
-func (m *SmiModule) SetRaw(smiModule *types.SmiModule) {
-	m.smiModule = smiModule
-}
-
-func CreateModule(smiModule *types.SmiModule) (module SmiModule) {
-	return SmiModule{
-		Module: models.Module{
-			ContactInfo:  smiModule.ContactInfo,
-			Description:  smiModule.Description,
-			Language:     smiModule.Language,
-			Name:         string(smiModule.Name),
-			Organization: smiModule.Organization,
-			Path:         smiModule.Path,
-			Reference:    smiModule.Reference,
-		},
-		smiModule: smiModule,
+// CreateModule: 内部辅助函数，把 types.SmiModule 转换为 models.Module
+func CreateModule(smiModule *types.SmiModule) Module {
+	return Module{
+		Module: models.CreateModule(smiModule),
 	}
 }
 
+// LoadModule: 你私有 fork 最核心的兼容性接口
 func LoadModule(modulePath string) (*Module, error) {
-    moduleName := smi.LoadModule(modulePath)
-    if moduleName == "" {
-        return nil, fmt.Errorf("Could not load module at %s", modulePath)
-    }
+	moduleName := smi.LoadModule(modulePath)
+	if moduleName == "" {
+		return nil, fmt.Errorf("Could not load module at %s", modulePath)
+	}
 
-    smiModule := smi.GetModule(moduleName)
-    if smiModule == nil {
-        return nil, fmt.Errorf("Could not get module %s after loading", moduleName)
-    }
+	smiModule := smi.GetModule(moduleName)
+	if smiModule == nil {
+		return nil, fmt.Errorf("Could not get module %s", moduleName)
+	}
 
-    module := &Module{
-        Module: smiModule,
-    }
+	module := &Module{
+		Module: models.CreateModule(smiModule),
+	}
 
-    return module, nil
+	return module, nil
 }
 
-func GetLoadedModules() (modules []SmiModule) {
+// GetLoadedModules: 获取所有已加载模块 (如果需要可扩展)
+func GetLoadedModules() []Module {
+	var modules []Module
 	for smiModule := smi.GetFirstModule(); smiModule != nil; smiModule = smi.GetNextModule(smiModule) {
 		modules = append(modules, CreateModule(smiModule))
 	}
-	return
+	return modules
 }
 
+// 兼容性辅助函数（保留，可选）
 func IsLoaded(moduleName string) bool {
 	return smi.IsLoaded(moduleName)
 }
 
-func GetModule(name string) (module SmiModule, err error) {
-	smiModule := smi.GetModule(name)
+func GetModule(moduleName string) (*Module, error) {
+	smiModule := smi.GetModule(moduleName)
 	if smiModule == nil {
-		err = fmt.Errorf("Could not find module named %s", name)
-		return
+		return nil, fmt.Errorf("Could not get module %s", moduleName)
 	}
-	return CreateModule(smiModule), nil
+	module := &Module{
+		Module: models.CreateModule(smiModule),
+	}
+	return module, nil
 }
