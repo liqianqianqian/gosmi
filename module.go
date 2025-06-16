@@ -13,6 +13,10 @@ type SmiModule struct {
 	smiModule *types.SmiModule
 }
 
+type Module struct {
+    *models.Module
+}
+
 func (m SmiModule) GetIdentityNode() (node SmiNode, ok bool) {
 	smiIdentityNode := smi.GetModuleIdentityNode(m.smiModule)
 	if smiIdentityNode == nil {
